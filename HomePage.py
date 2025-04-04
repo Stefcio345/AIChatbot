@@ -1,6 +1,10 @@
+import os
+
 import streamlit as st
 import base64
 
+st.set_page_config(page_title="CrackEmotions", layout="wide")
+st.session_state.avatars_dir = "avatars"
 
 def get_base64_img(file_path: str, width: int = 100) -> str:
     with open(file_path, "rb") as f:
@@ -74,7 +78,7 @@ def main_page():
     with col2:
         st.markdown(f"<div style='position:absolute;top:20px;right:20px'>{avatar_top}</div>", unsafe_allow_html=True)
         if st.button("👤 Avatar"):
-            st.session_state.page = "avatar"
+            st.session_state.page = "user_avatar"
             st.rerun()
 
     # Dolne ikony (bez funkcji)
@@ -95,53 +99,19 @@ def main_page():
         </div>
     """, unsafe_allow_html=True)
 
-
-def chat_page():
-    st.markdown("""
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    h1 {color: white; text-align: center; margin-top: 50px;}
-    .center {text-align: center; color: white;}
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<h1>Chat Page</h1>", unsafe_allow_html=True)
-    st.markdown("<div class='center'>Tutaj będzie interfejs chatu.</div>", unsafe_allow_html=True)
-
-    if st.button("⬅ Powrót"):
-        st.session_state.page = "main"
-        st.rerun()
-
-
-def avatar_page():
-    st.markdown("""
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    h1 {color: white; text-align: center; margin-top: 50px;}
-    .center {text-align: center; color: white;}
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<h1>Avatar Page</h1>", unsafe_allow_html=True)
-    st.markdown("<div class='center'>Tutaj będzie wybór avatara.</div>", unsafe_allow_html=True)
-
-    if st.button("⬅ Powrót"):
-        st.session_state.page = "main"
-        st.rerun()
-
-
 def main():
-    st.set_page_config(page_title="CrackEmotions", layout="wide")
-
+    if "user_avatar" in st.session_state:
+        st.sidebar.image(os.path.join(st.session_state.avatars_dir, st.session_state.user_avatar), width=100, caption="User Avatar")
     if "page" not in st.session_state:
         st.session_state.page = "main"
+    print(st.session_state)
 
     if st.session_state.page == "chat":
-        chat_page()
-    elif st.session_state.page == "avatar":
-        avatar_page()
+        st.switch_page("pages/chat.py")
+    elif st.session_state.page == "user_avatar":
+        st.switch_page("pages/user_avatar.py")
+    elif st.session_state.page == "bot_avatar":
+        st.switch_page("pages/bot_avatar.py")
     else:
         main_page()
 
