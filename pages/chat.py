@@ -1,21 +1,13 @@
-import streamlit as st
-import random
 import os
+
+import ollama
+import streamlit as st
 
 avatar_dir = "avatars"
 
-responses = [
-    "Człowiek jest wielki nie przez to, co ma, nie przez to, kim jest, lecz przez to, czym dzieli się z innymi.",
-    "Niech nasza droga będzie wspólna. Niech nasza modlitwa będzie pokorna. Niech nasza miłość będzie potężna.",
-    "Przyszłość zaczyna się dzisiaj, nie jutro.",
-    "Musicie od siebie wymagać, nawet gdyby inni od was nie wymagali.",
-    "Nie żyje się, nie kocha się, nie umiera się - na próbę.",
-    "Wymagajcie od siebie, choćby inni od was nie wymagali.",
-    "Człowiek nie może siebie sam do końca zrozumieć bez Chrystusa.",
-    "Wolność nie jest ulgą, lecz trudem wielkości.",
-    "Miłość mi wszystko wyjaśniła, miłość wszystko rozwiązała - dlatego uwielbiam tę Miłość, gdziekolwiek by przebywała.",
-    "Nie lękajcie się!"
-]
+def get_bot_response(history):
+    response = ollama.chat(model='llama3.2', messages=history, stream=True)
+    return response
 
 st.title("Chatbot")
 
@@ -34,7 +26,7 @@ else:
 
     # Display chat history
     for message in st.session_state.messages:
-        if(message["role"] == "user"):
+        if message["role"] == "user":
             with st.chat_message(message["role"], avatar=os.path.join(avatar_dir, st.session_state.user_avatar)):
                 st.write(message["content"])
         else:
@@ -50,8 +42,13 @@ else:
         with st.chat_message("user", avatar=os.path.join(avatar_dir, st.session_state.user_avatar)):
             st.write(user_input)
 
-        # Generate bot response
-        bot_response = random.choice(responses)
-        st.session_state.messages.append({"role": "bot", "content": bot_response})
+        bot_response = get_bot_response(st.session_state.messages)
+
+        # Display message with typing effect
         with st.chat_message("bot", avatar=os.path.join(avatar_dir, st.session_state.bot_avatar)):
-            st.write(bot_response)
+            placeholder = st.empty()
+            typed_text = ""
+            for chunk in bot_response:
+                typed_text += chunk['message']['content']
+                placeholder.markdown(typed_text)  # You can also use st.write(typed_text) but markdown looks cleanerre
+            st.session_state.messages.append({"role": "bot", "content": typed_text})

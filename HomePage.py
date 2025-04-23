@@ -12,7 +12,6 @@ def get_base64_img(file_path: str, width: int = 100) -> str:
     encoded = base64.b64encode(data).decode()
     return f"<img src='data:image/png;base64,{encoded}' width='{width}px' />"
 
-
 def set_background_image(image_file: str):
     with open(image_file, "rb") as f:
         data = f.read()
