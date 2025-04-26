@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  crack_emotions:
+    build: .
+    ports:
+      - "8501:8501"   # Streamlit
+      - "11435:11434" # Ollama
+    container_name: crack_emotions_app

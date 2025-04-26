@@ -6,6 +6,7 @@ import streamlit as st
 avatar_dir = "avatars"
 
 def get_bot_response(history):
+    ollama.pull('llama3.2')
     response = ollama.chat(model='llama3.2', messages=history, stream=True)
     return response
 

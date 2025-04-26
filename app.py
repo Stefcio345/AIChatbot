@@ -103,7 +103,6 @@ def main():
         st.sidebar.image(os.path.join(st.session_state.avatars_dir, st.session_state.user_avatar), width=100, caption="User Avatar")
     if "page" not in st.session_state:
         st.session_state.page = "main"
-    print(st.session_state)
 
     if st.session_state.page == "chat":
         st.switch_page("pages/chat.py")
