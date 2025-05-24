@@ -2,7 +2,7 @@ import pytest
 import base64
 from unittest import mock
 
-import app 
+import app
 from pages import bot_avatar, user_avatar, chat
 
 ### Tests for app.py ###
