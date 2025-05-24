@@ -2,10 +2,10 @@ import pytest
 import base64
 from unittest import mock
 
-import HomePage
+import app
 from pages import bot_avatar, user_avatar, chat
 
-### Tests for HomePage.py ###
+### Tests for app.py ###
 
 def test_get_base64_img(tmp_path):
     """
@@ -16,7 +16,7 @@ def test_get_base64_img(tmp_path):
     img_path.write_bytes(b"fake_image_data")
 
     # Call the function
-    result = HomePage.get_base64_img(str(img_path), width=100)
+    result = app.get_base64_img(str(img_path), width=100)
 
     # Assert that the result is a valid HTML image tag with base64 data
     assert result.startswith("<img src='data:image/png;base64,")
@@ -33,7 +33,7 @@ def test_set_background_image(tmp_path):
 
     # Mock Streamlit's markdown function
     with mock.patch("streamlit.markdown") as mock_markdown:
-        HomePage.set_background_image(str(img_path))
+        app.set_background_image(str(img_path))
 
         # Check that markdown was called once with expected content
         mock_markdown.assert_called_once()
