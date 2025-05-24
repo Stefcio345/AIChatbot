@@ -7,7 +7,7 @@ from pages import bot_avatar, user_avatar, chat
 
 ### Tests for app.py ###
 
-def test_get_base64_img(tmp_path):
+def test_get_base64_img(tmp_path): 
     """
     Test if get_base64_img correctly converts an image file to a base64 HTML <img> tag.
     """
