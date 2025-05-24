@@ -19,6 +19,10 @@ steps:
     displayName: 'Install requirements'
 
   - script: |
+      pip install pytest
+    displayName: 'Install pytest'
+
+  - script: |
       echo $(pwd)
       PYTHONPATH=$(pwd) pytest
     displayName: 'Run tests'
