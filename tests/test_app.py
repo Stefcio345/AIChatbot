@@ -1,99 +1,113 @@
-import pytest
-import base64
-from unittest import mock
+# tests/test_app.py
+import sys
+import os
 
-import HomePage
+# Dodaj folder projektu na ścieżkę importów
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
+
+import streamlit as st
+import base64
+import importlib
+import pytest
+
+# Zresetuj i zainicjalizuj wymagane klucze w session_state
+st.session_state.clear()
+st.session_state['avatars_dir'] = os.path.join(os.path.dirname(__file__), os.pardir, 'avatars')
+
+# Import modułów do testów avatarów i chat
 from pages import bot_avatar, user_avatar, chat
 
-### Tests for HomePage.py ###
+# ----------------------
+# Tests for bot_avatar.py
+# ----------------------
+def test_bot_get_image_base64(tmp_path):
+    file = tmp_path / "img.png"
+    data = b"abc"
+    file.write_bytes(data)
 
-def test_get_base64_img(tmp_path):
-    """
-    Test if get_base64_img correctly converts an image file to a base64 HTML <img> tag.
-    """
-    # Create a temporary fake image file
-    img_path = tmp_path / "test.png"
-    img_path.write_bytes(b"fake_image_data")
-
-    # Call the function
-    result = HomePage.get_base64_img(str(img_path), width=100)
-
-    # Assert that the result is a valid HTML image tag with base64 data
-    assert result.startswith("<img src='data:image/png;base64,")
-    assert "width='100px'" in result
+    result = bot_avatar.get_image_base64(str(file))
+    assert result == base64.b64encode(data).decode()
 
 
-def test_set_background_image(tmp_path):
-    """
-    Test if set_background_image generates a background style and calls Streamlit's markdown.
-    """
-    # Create a temporary fake image file
-    img_path = tmp_path / "background.jpg"
-    img_path.write_bytes(b"fake_image_data")
+def test_bot_set_avatar(monkeypatch):
+    st.session_state.clear()
+    st.session_state['avatars_dir'] = 'avatars'
+    importlib.reload(bot_avatar)
 
-    # Mock Streamlit's markdown function
-    with mock.patch("streamlit.markdown") as mock_markdown:
-        HomePage.set_background_image(str(img_path))
-
-        # Check that markdown was called once with expected content
-        mock_markdown.assert_called_once()
-        assert "background" in mock_markdown.call_args[0][0]
+    bot_avatar.set_avatar("me.png")
+    assert st.session_state.bot_avatar == "me.png"
 
 
-### Tests for bot_avatar.py and user_avatar.py ###
+def test_bot_avatar_files_and_paths(tmp_path):
+    avatars_dir = tmp_path
+    for name in ["a.png","b.png","c.txt"]:
+        (avatars_dir/name).write_bytes(b"x")
 
-@pytest.mark.parametrize("module", [bot_avatar, user_avatar])
-def test_get_image_base64(module, tmp_path):
-    """
-    Test if get_image_base64 correctly encodes image files to base64 strings.
-    This test is applied to both bot_avatar.py and user_avatar.py modules.
-    """
-    # Create a temporary fake image file
-    img_path = tmp_path / "avatar.png"
-    img_path.write_bytes(b"test_image_data")
+    st.session_state.clear()
+    st.session_state['avatars_dir'] = str(avatars_dir)
+    importlib.reload(bot_avatar)
 
-    # Call the function
-    encoded = module.get_image_base64(str(img_path))
+    assert sorted(bot_avatar.avatar_files) == ["a.png","b.png"]
+    for f in bot_avatar.avatar_files:
+        assert bot_avatar.avatar_paths[f] == os.path.join(str(avatars_dir), f)
 
-    # Assert that the output is a correct base64 encoded string
-    assert isinstance(encoded, str)
-    assert base64.b64encode(b"test_image_data").decode() == encoded
+# ----------------------
+# Tests for user_avatar.py
+# ----------------------
+def test_user_get_image_base64(tmp_path):
+    file = tmp_path / "img2.png"
+    data = b"123"
+    file.write_bytes(data)
 
-
-@pytest.mark.parametrize("module, key", [
-    (bot_avatar, "bot_avatar"),
-    (user_avatar, "user_avatar")
-])
-def test_set_avatar(module, key):
-    """
-    Test if set_avatar correctly updates Streamlit's session_state with the selected avatar.
-    This test covers both bot and user avatar modules.
-    """
-    with mock.patch.dict("streamlit.session_state", {}, clear=True):
-        module.set_avatar("test_avatar.png")
-
-        # Check if the avatar key is set correctly in session_state
-        assert key in mock.patch.dict
-        assert mock.patch.dict["streamlit.session_state"][key] == "test_avatar.png"
+    assert user_avatar.get_image_base64(str(file)) == base64.b64encode(data).decode()
 
 
-### Tests for chat.py ###
+def test_user_set_avatar():
+    st.session_state.clear()
+    st.session_state['avatars_dir'] = 'avatars'
+    importlib.reload(user_avatar)
 
-def test_get_bot_response():
-    """
-    Test if get_bot_response calls ollama.chat with correct parameters and returns the response.
-    The ollama.chat function is mocked to avoid external dependencies.
-    """
-    fake_history = [{"role": "user", "content": "Hello"}]
+    user_avatar.set_avatar("you.png")
+    assert st.session_state.user_avatar == "you.png"
 
-    # Simulate a fake streaming response
-    fake_response = [{"message": {"content": "Hi there!"}}, {"message": {"content": " How can I help?"}}]
 
-    with mock.patch("chat.ollama.chat", return_value=fake_response) as mock_ollama:
-        response = chat.get_bot_response(fake_history)
+def test_user_avatar_files_and_paths(tmp_path):
+    avatars_dir = tmp_path
+    for name in ["x.png","y.jpg","z.png"]:
+        (avatars_dir/name).write_bytes(b"x")
 
-        # Verify that ollama.chat was called correctly
-        mock_ollama.assert_called_once_with(model='llama3.2', messages=fake_history, stream=True)
+    st.session_state.clear()
+    st.session_state['avatars_dir'] = str(avatars_dir)
+    importlib.reload(user_avatar)
 
-        # Check if the response matches the mocked return value
-        assert response == fake_response
+    assert sorted(user_avatar.avatar_files) == ["x.png","z.png"]
+    for f in user_avatar.avatar_files:
+        assert user_avatar.avatar_paths[f] == os.path.join(str(avatars_dir), f)
+
+# ----------------------
+# Tests for chat.py
+# ----------------------
+class DummyOllama:
+    def __init__(self):
+        self.pulled_model = None
+    def pull(self, model):
+        self.pulled_model = model
+    def chat(self, model, messages, stream):
+        yield {'message': {'content': 'chunk1'}}
+        yield {'message': {'content': 'chunk2'}}
+
+
+def test_get_bot_response(monkeypatch):
+    dummy = DummyOllama()
+    monkeypatch.setattr(chat, 'ollama', dummy)
+
+    history = [{'role':'user','content':'hi'}]
+    gen = chat.get_bot_response(history)
+
+    assert hasattr(gen, '__iter__')
+    result = list(gen)
+    assert result == [
+        {'message': {'content': 'chunk1'}},
+        {'message': {'content': 'chunk2'}}
+    ]
+    assert dummy.pulled_model == 'llama3.2'

@@ -1,118 +1,153 @@
-import os
-
-import streamlit as st
 import base64
+import pytest
+import os
+import importlib
 
-st.set_page_config(page_title="CrackEmotions", layout="wide")
-st.session_state.avatars_dir = "avatars"
+# Import modules under test
+import app
+from pages import bot_avatar, chat, user_avatar
 
-def get_base64_img(file_path: str, width: int = 100) -> str:
-    with open(file_path, "rb") as f:
-        data = f.read()
-    encoded = base64.b64encode(data).decode()
-    return f"<img src='data:image/png;base64,{encoded}' width='{width}px' />"
+# ----------------------
+# Tests for app.py
+# ----------------------
+def test_get_base64_img(tmp_path):
+    # Create a dummy image file
+    file_path = tmp_path / "test.png"
+    data = b"hello world"
+    file_path.write_bytes(data)
 
-def set_background_image(image_file: str):
-    with open(image_file, "rb") as f:
-        data = f.read()
-    encoded = base64.b64encode(data).decode()
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background: url("data:image/jpg;base64,{encoded}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+    html = app.get_base64_img(str(file_path), width=42)
 
+    # Verify HTML img tag formation
+    assert html.startswith("<img src='data:image/png;base64,")
+    assert "width='42px'" in html
 
-def main_page():
-    set_background_image("images/megumi.jpg")
-
-    st.markdown("""
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    .title {
-        text-align: center;
-        color: white;
-        font-size: 72px;
-        font-weight: bold;
-        margin-top: 20px;
-        margin-bottom: 20px;
-    }
-    .bottom-icons {
-        display: flex;
-        justify-content: center;
-        margin-top: 150px;
-    }
-    .icon {
-        margin: 0 50px;
-        text-align: center;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<h1 class='title'>CrackEmotions</h1>", unsafe_allow_html=True)
-
-    # Ikony
-    avatar_top = get_base64_img("images/avatar.png", width=150)
-    chat_center = get_base64_img("images/chat.png", width=200)
-    bottom_avatar = get_base64_img("images/avatar.png", width=120)
-    bottom_bar = get_base64_img("images/bar.png", width=120)
-    bottom_camera = get_base64_img("images/camera.png", width=120)
-
-    st.markdown(f"<div style='text-align:center'>{chat_center}</div>", unsafe_allow_html=True)
-    if st.button("💬 Przejdź do chatu"):
-        st.session_state.page = "chat"
-        st.rerun()
-
-    # Przycisk avatar w rogu
-    col1, col2 = st.columns([10, 1])
-    with col2:
-        st.markdown(f"<div style='position:absolute;top:20px;right:20px'>{avatar_top}</div>", unsafe_allow_html=True)
-        if st.button("👤 Avatar"):
-            st.session_state.page = "user_avatar"
-            st.rerun()
-
-    # Dolne ikony (bez funkcji)
-    st.markdown(f"""
-        <div class="bottom-icons">
-            <div class="icon">
-                {bottom_avatar}<br/>
-                <button disabled>Avatar</button>
-            </div>
-            <div class="icon">
-                {bottom_bar}<br/>
-                <button disabled>Bar</button>
-            </div>
-            <div class="icon">
-                {bottom_camera}<br/>
-                <button disabled>Camera</button>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-def main():
-    if "user_avatar" in st.session_state:
-        st.sidebar.image(os.path.join(st.session_state.avatars_dir, st.session_state.user_avatar), width=100, caption="User Avatar")
-    if "page" not in st.session_state:
-        st.session_state.page = "main"
-
-    if st.session_state.page == "chat":
-        st.switch_page("pages/chat.py")
-    elif st.session_state.page == "user_avatar":
-        st.switch_page("pages/user_avatar.py")
-    elif st.session_state.page == "bot_avatar":
-        st.switch_page("pages/bot_avatar.py")
-    else:
-        main_page()
+    # Ensure base64-encoded data is present
+    expected = base64.b64encode(data).decode()
+    assert expected in html
 
 
-if __name__ == "__main__":
-    main()
+def test_set_background_image(tmp_path, monkeypatch):
+    # Prepare a dummy background image
+    file_path = tmp_path / "bg.png"
+    data = b"background"
+    file_path.write_bytes(data)
+
+    # Capture markdown call
+    calls = {}
+    def fake_markdown(arg, unsafe_allow_html):
+        calls['arg'] = arg
+        calls['unsafe'] = unsafe_allow_html
+    monkeypatch.setattr(app.st, 'markdown', fake_markdown)
+
+    # Call under test
+    app.set_background_image(str(file_path))
+
+    # Assertions
+    assert calls.get('unsafe') is True
+    assert 'background-image' in calls.get('arg', '')
+    assert base64.b64encode(data).decode() in calls['arg']
+
+# ----------------------
+# Tests for bot_avatar.py
+# ----------------------
+def test_bot_get_image_base64(tmp_path):
+    file = tmp_path / "test.png"
+    data = b"abc"
+    file.write_bytes(data)
+
+    result = bot_avatar.get_image_base64(str(file))
+    assert result == base64.b64encode(data).decode()
+
+
+def test_bot_set_avatar(monkeypatch):
+    import streamlit as st
+    # Reset session_state
+    st.session_state.clear()
+
+    bot_avatar.set_avatar("avatar1.png")
+    assert st.session_state.bot_avatar == "avatar1.png"
+
+
+def test_bot_avatar_files_and_paths(tmp_path, monkeypatch):
+    # Create dummy avatars directory
+    avatars_dir = tmp_path
+    files = ["a.png", "b.png", "c.txt"]
+    for name in files:
+        (avatars_dir / name).write_bytes(b"x")
+
+    import streamlit as st
+    st.session_state.avatars_dir = str(avatars_dir)
+
+    # Reload module to pick up new directory
+    importlib.reload(bot_avatar)
+
+    expected = ["a.png", "b.png"]
+    assert sorted(bot_avatar.avatar_files) == expected
+    for f in expected:
+        assert bot_avatar.avatar_paths[f] == os.path.join(str(avatars_dir), f)
+
+# ----------------------
+# Tests for user_avatar.py
+# ----------------------
+def test_user_get_image_base64(tmp_path):
+    file = tmp_path / "test2.png"
+    data = b"123"
+    file.write_bytes(data)
+
+    result = user_avatar.get_image_base64(str(file))
+    assert result == base64.b64encode(data).decode()
+
+
+def test_user_set_avatar(monkeypatch):
+    import streamlit as st
+    st.session_state.clear()
+
+    user_avatar.set_avatar("u.png")
+    assert st.session_state.user_avatar == "u.png"
+
+
+def test_user_avatar_files_and_paths(tmp_path, monkeypatch):
+    avatars_dir = tmp_path
+    names = ["x.png", "y.jpg", "z.png"]
+    for n in names:
+        (avatars_dir / n).write_bytes(b"x")
+
+    import streamlit as st
+    st.session_state.avatars_dir = str(avatars_dir)
+
+    importlib.reload(user_avatar)
+
+    expected = ["x.png", "z.png"]
+    assert sorted(user_avatar.avatar_files) == expected
+    for f in expected:
+        assert user_avatar.avatar_paths[f] == os.path.join(str(avatars_dir), f)
+
+# ----------------------
+# Tests for chat.py
+# ----------------------
+class DummyOllama:
+    def __init__(self):
+        self.pulled_model = None
+    def pull(self, model):
+        self.pulled_model = model
+    def chat(self, model, messages, stream):
+        yield {'message': {'content': 'chunk1'}}
+        yield {'message': {'content': 'chunk2'}}
+
+
+def test_get_bot_response(monkeypatch):
+    dummy = DummyOllama()
+    monkeypatch.setattr(chat, 'ollama', dummy)
+
+    history = [{'role': 'user', 'content': 'hi'}]
+    response_gen = chat.get_bot_response(history)
+
+    assert hasattr(response_gen, '__iter__')
+
+    result = list(response_gen)
+    assert result == [
+        {'message': {'content': 'chunk1'}},
+        {'message': {'content': 'chunk2'}}
+    ]
+    assert dummy.pulled_model == 'llama3.2'
