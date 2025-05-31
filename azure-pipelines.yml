@@ -11,12 +11,13 @@ resources:
 - repo: self
 
 variables:
-  # Container registry service connection established during pipeline creation
-  dockerRegistryServiceConnection: '9edeaaba-e414-4a6c-ae8f-43c7a1319bb6'
+- group: group
   imageRepository: 'crackemotions'
   containerRegistry: 'crackemotions.azurecr.io'
   dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
   tag: '$(Build.BuildId)'
+  containerName: crackemotions-container
+  resourceGroup: CrackEmotions
 
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
@@ -39,3 +40,15 @@ stages:
         containerRegistry: $(dockerRegistryServiceConnection)
         tags: |
           $(tag)
+- stage: Deploy
+  displayName: Deploy to cloud
+  jobs:
+  - job: Deploy
+    steps:
+    - task: AzureContainerApps@1
+      inputs:
+        azureSubscription: $(azureSubscription)
+        imageToDeploy: crackemotions
+        containerAppName: $(containerName)
+        resourceGroup: $(resourceGroup)
+        ingress: external
