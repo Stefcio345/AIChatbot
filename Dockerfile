@@ -24,7 +24,7 @@ COPY start.sh /start.sh
 RUN chmod +x /start.sh
  
 # 8. Expose ports
-EXPOSE 8501
+EXPOSE 80
 EXPOSE 11434
  
 # 9. Run the startup script
