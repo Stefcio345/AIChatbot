@@ -12,15 +12,20 @@ resources:
 
 variables:
 - group: group
-  imageRepository: 'crackemotions'
-  containerRegistry: 'crackemotions.azurecr.io'
-  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
-  tag: '$(Build.BuildId)'
-  containerName: crackemotions-container
-  resourceGroup: CrackEmotions
-
-  # Agent VM image name
-  vmImageName: 'ubuntu-latest'
+- name: imageRepository
+  value: 'crackemotions'
+- name: containerRegistry
+  value: 'crackemotions.azurecr.io'
+- name: dockerfilePath
+  value: '$(Build.SourcesDirectory)/Dockerfile'
+- name: tag
+  value: '$(Build.BuildId)'
+- name: appName
+  value: 'crackemotions'
+- name: resourceGroup
+  value: 'CrackEmotions'
+- name: vmImageName
+  value: 'ubuntu-latest'
 
 stages:
 - stage: Build
@@ -40,15 +45,15 @@ stages:
         containerRegistry: $(dockerRegistryServiceConnection)
         tags: |
           $(tag)
+          latest
 - stage: Deploy
   displayName: Deploy to cloud
   jobs:
   - job: Deploy
     steps:
-    - task: AzureContainerApps@1
+    - task: AzureWebAppContainer@1
       inputs:
         azureSubscription: $(azureSubscription)
-        imageToDeploy: crackemotions
-        containerAppName: $(containerName)
-        resourceGroup: $(resourceGroup)
-        ingress: external
+        appName: $(containerName)
+        containers: $(containerRegistry)/$(imageRepository):$(tag)
+        resourceGroupName: $(resourceGroup)
