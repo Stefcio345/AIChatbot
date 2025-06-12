@@ -5,7 +5,8 @@ import streamlit as st
 
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
-from datetime import datetime
+from datetime import datetime, timezone
+import json
 
 avatar_dir = "avatars"
 
@@ -16,25 +17,32 @@ def get_bot_response(history):
     return response
 
 def save_to_azure_storage(input, output):
+    print('Uploading conversation to Azure Storage...')
+    print(input)
+    print(output)
     try:
         account_url = 'https://crackemotions.blob.core.windows.net'
         default_credential = DefaultAzureCredential()
 
         blob_service_client = BlobServiceClient(account_url, credential=default_credential)
 
-        container_name = str(datetime.now())
+        container_name = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ').lower()
+        print(f'Creating container with name "{container_name}"...')
         blob_service_client.create_container(container_name)
         print('Created container', container_name)
 
+        print('Uploading blobs...')
         input_client = blob_service_client.get_blob_client(container=container_name, blob='input.txt')
         output_client = blob_service_client.get_blob_client(container=container_name, blob='output.txt')
 
         input_client.upload_blob(input)
-        output_client.upload_blob(output)
+        print('Uploaded input.txt to ', container_name)
         
-        print('Uploaded input.txt and output.txt to ', container_name)
+        output_client.upload_blob(output)
+        print('Uploaded output.txt to ', container_name)
     except Exception as e:
-        print('Failed to upload to blob storage', e)
+        print('Failed to upload to blob storage:')
+        print(e)
     
 
 st.title("Chatbot")
@@ -70,18 +78,16 @@ else:
         with st.chat_message("user", avatar=os.path.join(avatar_dir, st.session_state.user_avatar)):
             st.write(user_input)
 
-        input = st.session_state.messages
+        input = json.dumps(st.session_state.messages, indent=4)
         bot_response = get_bot_response(st.session_state.messages)
 
-        output = ''
-        # Display message with typing effect
         with st.chat_message("bot", avatar=os.path.join(avatar_dir, st.session_state.bot_avatar)):
             placeholder = st.empty()
             typed_text = ""
             for chunk in bot_response:
                 typed_text += chunk['message']['content']
                 placeholder.markdown(typed_text)  # You can also use st.write(typed_text) but markdown looks cleanerre
-            output += typed_text
             st.session_state.messages.append({"role": "bot", "content": typed_text})
         
+        output = json.dumps(st.session_state.messages[-1], indent=4)
         save_to_azure_storage(input, output)
