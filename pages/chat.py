@@ -12,7 +12,16 @@ avatar_dir = "avatars"
 
 
 def get_bot_response(history):
-    ollama.pull('llama3.2')
+    # Get the personality info from session
+    personality = st.session_state.get("bot_personality", {})
+    prompt_prefix = personality.get("prompt_prefix", "")
+
+    # Inject the personality as a system message
+    if prompt_prefix:
+        history = [{"role": "system", "content": prompt_prefix}] + history
+
+    # Call the model
+    ollama.pull('llama3.2')  # Optional: you can remove this if already pulled
     response = ollama.chat(model='llama3.2', messages=history, stream=True)
     return response
 
@@ -43,7 +52,7 @@ def save_to_azure_storage(input, output):
     except Exception as e:
         print('Failed to upload to blob storage:')
         print(e)
-    
+
 
 st.title("Chatbot")
 
@@ -62,18 +71,19 @@ else:
 
     # Display chat history
     for message in st.session_state.messages:
+        avatar_path = os.path.join(avatar_dir, message.get("avatar", "default.png"))
         if message["role"] == "user":
-            with st.chat_message(message["role"], avatar=os.path.join(avatar_dir, st.session_state.user_avatar)):
+            with st.chat_message(message["role"], avatar=avatar_path):
                 st.write(message["content"])
         else:
-            with st.chat_message(message["role"], avatar=os.path.join(avatar_dir, st.session_state.bot_avatar)):
+            with st.chat_message(message["role"], avatar=avatar_path):
                 st.write(message["content"])
 
     # User input
     user_input = st.chat_input("Say something...")
     if user_input:
         # Append user message
-        st.session_state.messages.append({"role": "user", "content": user_input})
+        st.session_state.messages.append({"role": "user", "content": user_input, "avatar": st.session_state.user_avatar})
 
         with st.chat_message("user", avatar=os.path.join(avatar_dir, st.session_state.user_avatar)):
             st.write(user_input)
@@ -87,7 +97,7 @@ else:
             for chunk in bot_response:
                 typed_text += chunk['message']['content']
                 placeholder.markdown(typed_text)  # You can also use st.write(typed_text) but markdown looks cleanerre
-            st.session_state.messages.append({"role": "bot", "content": typed_text})
+            st.session_state.messages.append({"role": "bot", "content": typed_text, "avatar": st.session_state.bot_avatar})
         
         output = json.dumps(st.session_state.messages[-1], indent=4)
         save_to_azure_storage(input, output)
