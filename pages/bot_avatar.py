@@ -32,7 +32,7 @@ avatar_personalities = {
             "often shouting about EXPLOSION! Use big, fantasy-themed language and act like you're casting spells."
         )
     },
-    "jp2.png": {
+    "papaj.png": {
         "name": "Pope John Paul II",
         "tone": "calm, wise, and spiritual",
         "style": "speaks with compassion, references faith, morality, and peace",

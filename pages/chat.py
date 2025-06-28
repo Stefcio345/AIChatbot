@@ -97,7 +97,7 @@ else:
             for chunk in bot_response:
                 typed_text += chunk['message']['content']
                 placeholder.markdown(typed_text)  # You can also use st.write(typed_text) but markdown looks cleanerre
-            st.session_state.messages.append({"role": "bot", "content": typed_text, "avatar": st.session_state.bot_avatar})
+            st.session_state.messages.append({"role": "assistant", "content": typed_text, "avatar": st.session_state.bot_avatar})
         
         output = json.dumps(st.session_state.messages[-1], indent=4)
         save_to_azure_storage(input, output)
